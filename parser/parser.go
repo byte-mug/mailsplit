@@ -13,6 +13,7 @@ import (
 
 var skipHeaders = map[string]bool{
 	"Content-Type": true,
+	"Content-Encoding": true,
 }
 
 func Parse(aw mailsplit.AttachmentWriter, src io.Reader) (me *mailsplit.MailElement,err0 error) {
@@ -23,8 +24,8 @@ func Parse(aw mailsplit.AttachmentWriter, src io.Reader) (me *mailsplit.MailElem
 	if e!=nil { return nil,e }
 	
 	for hf := mr.Header.Fields(); hf.Next(); {
-		k := hf.Key()
-		if skipHeaders[netep.CanonicalMIMEHeaderKey(k)] { continue }
+		k := netep.CanonicalMIMEHeaderKey(hf.Key()) // Normalizing makes our live easier here.
+		if skipHeaders[k] { continue }
 		me.Header[k] = append(me.Header[k],hf.Value())
 	}
 	
