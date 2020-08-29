@@ -14,6 +14,7 @@ import (
 var skipHeaders = map[string]bool{
 	"Content-Type": true,
 	"Content-Encoding": true,
+	"Content-Transfer-Encoding": true,
 }
 
 func Parse(aw mailsplit.AttachmentWriter, src io.Reader) (me *mailsplit.MailElement,err0 error) {

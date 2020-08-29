@@ -7,6 +7,8 @@ All info-structures can be serialized as JSON to allow efficient storage of them
 */
 package mailsplit
 
+import "io"
+
 type MailAttachment struct {
 	ContentType string
 	Filename string
@@ -22,4 +24,7 @@ type MailElement struct {
 	Seperator string
 }
 
-
+type MailAttachmentObject interface{
+	Att() *MailAttachment
+	Get() (io.ReadCloser,error)
+}

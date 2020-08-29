@@ -11,10 +11,12 @@ import (
 
 func GetBodyStructure(me *mailsplit.MailElement, attachments []*mailsplit.MailAttachment, ext bool) (*imap.BodyStructure){
 	bs := new(imap.BodyStructure)
-	parts := make([]*imap.BodyStructure,0,3+len(attachments))
+	parts := make([]*imap.BodyStructure,0,1+len(attachments))
+	texts := make([]*imap.BodyStructure,0,len(me.Text))
 	
 	bs.MIMEType = "multipart"
 	bs.MIMESubType = "mixed"
+	bs.Params = map[string]string {"boundary":"pot."+me.Seperator+".top"}
 	
 	for _,te := range me.Text {
 		ps := new(imap.BodyStructure)
@@ -24,13 +26,29 @@ func GetBodyStructure(me *mailsplit.MailElement, attachments []*mailsplit.MailAt
 		ps.Params = make(map[string]string)
 		ps.Size = uint32(len(te.Body))
 		ps.Lines = uint32(strings.Count(te.Body,"\n"))
-		parts = append(parts,ps)
+		ps.Encoding = "8bit"
+		texts = append(texts,ps)
 		if ext {
 			ps.Extended = true
 			ps.Disposition = "inline"
 			ps.Language = me.Header["Content-Language"]
 			sum := md5.Sum([]byte(te.Body))
 			ps.MD5 = hex.EncodeToString(sum[:])
+		}
+	}
+	if len(texts)==1 {
+		parts = append(parts,texts[0])
+	} else {
+		ps := new(imap.BodyStructure)
+		ps.MIMEType = "multipart"
+		ps.MIMESubType = "alternative"
+		ps.Params = map[string]string {"boundary":"txt."+me.Seperator+".txt"}
+		ps.Parts = texts
+		parts = append(parts,ps)
+		if ext {
+			ps.Extended = true
+			ps.Disposition = "inline"
+			ps.Language = me.Header["Content-Language"]
 		}
 	}
 	for _,ma := range attachments {
@@ -51,7 +69,7 @@ func GetBodyStructure(me *mailsplit.MailElement, attachments []*mailsplit.MailAt
 	bs.Parts = parts
 	bs.Id = unwrap(me.Header["Content-Id"])
 	bs.Description = unwrap(me.Header["Content-Description"])
-	bs.Encoding = unwrap(me.Header["Content-Transfer-Encoding"])
+	//bs.Encoding = unwrap(me.Header["Content-Transfer-Encoding"])
 	
 	if ext {
 		bs.Extended = true
