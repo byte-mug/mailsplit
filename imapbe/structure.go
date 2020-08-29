@@ -6,10 +6,21 @@ import (
 	"strings"
 	"encoding/hex"
 	"crypto/md5"
+	
+	"mime/quotedprintable"
+	"bytes"
 )
 
+func convert(bb []byte,plain bool) []byte {
+	if plain { return bb }
+	b := new(bytes.Buffer)
+	w := quotedprintable.NewWriter(b)
+	w.Write(bb)
+	w.Close()
+	return b.Bytes()
+}
 
-func GetBodyStructure(me *mailsplit.MailElement, attachments []*mailsplit.MailAttachment, ext bool) (*imap.BodyStructure){
+func GetBodyStructure(me *mailsplit.MailElement, attachments []mailsplit.MailAttachmentObject, ext bool) (*imap.BodyStructure){
 	bs := new(imap.BodyStructure)
 	parts := make([]*imap.BodyStructure,0,1+len(attachments))
 	texts := make([]*imap.BodyStructure,0,len(me.Text))
@@ -19,20 +30,27 @@ func GetBodyStructure(me *mailsplit.MailElement, attachments []*mailsplit.MailAt
 	bs.Params = map[string]string {"boundary":"pot."+me.Seperator+".top"}
 	
 	for _,te := range me.Text {
+		var usePlain = te.Format=="text/plain"
 		ps := new(imap.BodyStructure)
 		mt := append(strings.SplitN(te.Format,"/",2),"")
 		ps.MIMEType = mt[0]
 		ps.MIMESubType = mt[1]
 		ps.Params = make(map[string]string)
-		ps.Size = uint32(len(te.Body))
+		bb := convert([]byte(te.Body),usePlain)
+		
+		ps.Size = uint32(len(bb))
 		ps.Lines = uint32(strings.Count(te.Body,"\n"))
-		ps.Encoding = "8bit"
+		if usePlain {
+			ps.Encoding = "8bit"
+		} else {
+			ps.Encoding = "quoted-printable"
+		}
 		texts = append(texts,ps)
 		if ext {
 			ps.Extended = true
 			ps.Disposition = "inline"
 			ps.Language = me.Header["Content-Language"]
-			sum := md5.Sum([]byte(te.Body))
+			sum := md5.Sum(bb)
 			ps.MD5 = hex.EncodeToString(sum[:])
 		}
 	}
@@ -51,7 +69,8 @@ func GetBodyStructure(me *mailsplit.MailElement, attachments []*mailsplit.MailAt
 			ps.Language = me.Header["Content-Language"]
 		}
 	}
-	for _,ma := range attachments {
+	for _,mao := range attachments {
+		ma := mao.Att()
 		ps := new(imap.BodyStructure)
 		mt := append(strings.SplitN(ma.ContentType,"/",2),"")
 		ps.MIMEType = mt[0]
