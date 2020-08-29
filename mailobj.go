@@ -27,4 +27,6 @@ type MailElement struct {
 type MailAttachmentObject interface{
 	Att() *MailAttachment
 	Get() (io.ReadCloser,error)
+	// Estimate the length.
+	Length() (int64,error)
 }

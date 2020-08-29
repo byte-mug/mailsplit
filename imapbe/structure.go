@@ -75,11 +75,30 @@ func GetBodyStructure(me *mailsplit.MailElement, attachments []mailsplit.MailAtt
 		mt := append(strings.SplitN(ma.ContentType,"/",2),"")
 		ps.MIMEType = mt[0]
 		ps.MIMESubType = mt[1]
-		ps.Params = make(map[string]string)
+		ps.Encoding = "base64"
+		if ma.Filename!="" {
+			ps.Params = map[string]string{ "name": ma.Filename }
+		}
+		if l,err := mao.Length(); err==nil {
+			/*
+			Approximation:
+			 base64 lines are 76 Characters long (= 19*4)
+			 each line is terminated with "\r\n" (2 bytes)
+			 4 bytes are generated out of 3 bytes binary data.
+			*/
+			m := (l+2)/3 // Number of 4 byte Base64 words (encodes 3 bytes from SRC)
+			lb := (m+18)/19 // Chop into 19 Word Lines (19*4 = 76 bytes)
+			total := (m*4)+(lb*2) // Compute the total number of bytes m base64 words + lb linebreaks.
+			if total>0xFFFFFFFF { total = 0xFFFFFFFF } // Prevent Buffer overflow.
+			ps.Size = uint32(total) // Set size of body
+			ps.Lines = uint32(lb) // Set line count of body
+		}
 		if ext {
 			ps.Extended = true
 			ps.Disposition = "attachment"
-			bs.DispositionParams = map[string]string{ "name":ma.Filename }
+			if ma.Filename!="" {
+				ps.DispositionParams = map[string]string{ "filename": ma.Filename }
+			}
 			ps.Language = me.Header["Content-Language"]
 		}
 		parts = append(parts,ps)
