@@ -143,8 +143,8 @@ func (mat *MailAsText) EncodeAll(h bool,b bool) error {
 	tsep := "pot."+mat.Me.Seperator+".top"
 	if h {
 		var hdr message.Header
-		for k,vs := range mat.Me.Header {
-			for _,v := range vs {
+		for _,k := range sortedKeys(mat.Me.Header) {
+			for _,v := range mat.Me.Header[k] {
 				hdr.Add(k,v)
 			}
 		}
